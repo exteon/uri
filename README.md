@@ -59,7 +59,7 @@ setters to modify an URI.
 
 ### Base and relative urls, composition
 
-The `Uri` object can be use to combine relative uris to a base uri:
+The `Uri` object can be used to combine relative URIs to a base URI:
 
 ```php
 use Exteon\Uri\Uri;
