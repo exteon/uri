@@ -2,11 +2,12 @@
 
     namespace Test\Exteon\Uri;
 
-    use Exteon\Uri\PHPUri;
+    use Exception;
+    use Exteon\Uri\PhpUri;
     use InvalidArgumentException;
     use PHPUnit\Framework\TestCase;
 
-    class PHPUriTest extends TestCase
+    class PhpUriTest extends TestCase
     {
         public function testQueryString(): void
         {
@@ -23,12 +24,15 @@
             self::assertEquals(['foo' => ['bar', 'baz']], $uri->getQuery());
         }
 
+        /**
+         * @throws Exception
+         */
         public function testComposeWith(): void
         {
-            $baseUri = PhpUri::fromString('/?foo[]=bar&foo[]=baz');
+            $baseURI = PhpUri::fromString('/?foo[]=bar&foo[]=baz');
 
             $uri = PhpUri::fromString('#a');
-            $uri->composeWithBase($baseUri);
+            $uri->composeWithBase($baseURI);
             self::assertEquals(['foo' => ['bar', 'baz']], $uri->getQuery());
             self::assertEquals(
                 '/?foo%5B0%5D=bar&foo%5B1%5D=baz#a',
@@ -38,7 +42,7 @@
 
         public function testCompose(): void
         {
-            $uri = new PHPUri(
+            $uri = new PhpUri(
                 null,
                 null,
                 null,
@@ -67,15 +71,15 @@
                 'd' => ''
             ];
 
-            $uri = new PHPUri();
+            $uri = new PhpUri();
 
-            $uri->setQuery(PHPUri::nullValuesToEmptyString($query));
+            $uri->setQuery(PhpUri::nullValuesToEmptyString($query));
             self::assertEquals(
                 '?a=5&b%5Bx%5D=&b%5By%5D=&b%5Bz%5D=1&c=&d=',
                 $uri->toString()
             );
 
-            $uri->setQuery(PHPUri::nullValuesUnset($query));
+            $uri->setQuery(PhpUri::nullValuesUnset($query));
             self::assertEquals(
                 '?a=5&b%5Bx%5D=&b%5Bz%5D=1&d=',
                 $uri->toString()
@@ -85,7 +89,21 @@
         public function testNullValuesValidation(): void
         {
             $this->expectException(InvalidArgumentException::class);
-            $uri = new PHPUri();
+            $uri = new PhpUri();
             $uri->setQuery(['a' => ['b' => null]]);
         }
+
+
+        public function testSchemeValidationOnConstructorArg()
+        {
+            $this->expectException(InvalidArgumentException::class);
+            new PhpUri('/test:');
+        }
+
+        public function testSchemeValidationOnSetScheme()
+        {
+            $this->expectException(InvalidArgumentException::class);
+            (new PhpUri())->setScheme('/test:');
+        }
+
     }

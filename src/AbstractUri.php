@@ -2,291 +2,13 @@
 
     namespace Exteon\Uri;
 
+    use ErrorException;
     use Exception;
     use InvalidArgumentException;
 
     abstract class AbstractUri
     {
-        /** @var string|null */
-        protected $scheme;
-
-        /** @var string|null */
-        protected $host;
-
-        /** @var int|null */
-        protected $port;
-
-        /** @var string|null */
-        protected $user;
-
-        /** @var string|null */
-        protected $pass;
-
-        /** @var string|null */
-        protected $fragment;
-
-        /** @var string The document directory, including trailing / */
-        protected $directory = '';
-
-        /**  @var string */
-        protected $document = '';
-
         abstract public function __construct();
-
-        /**
-         * @return bool
-         */
-        abstract protected function hasQueryString(): bool;
-
-        /**
-         * @return string|null
-         */
-        abstract public function getQueryString(): ?string;
-
-        /**
-         * @param string|null $queryString
-         */
-        abstract public function setQueryString(?string $queryString): void;
-
-        /**
-         * @param AbstractUri $from
-         * @return mixed
-         */
-        abstract protected function setQueryStringFrom(self $from): void;
-
-        /**
-         * @return string|null
-         */
-        public function getScheme(): ?string
-        {
-            return $this->scheme;
-        }
-
-        /**
-         * @return string|null
-         */
-        public function getHost(): ?string
-        {
-            return $this->host;
-        }
-
-        /**
-         * @return int|null
-         */
-        public function getPort(): ?int
-        {
-            return $this->port;
-        }
-
-        /**
-         * @return string|null
-         */
-        public function getUser(): ?string
-        {
-            return $this->user;
-        }
-
-        /**
-         * @return string|null
-         */
-        public function getPass(): ?string
-        {
-            return $this->pass;
-        }
-
-        /**
-         * @return string
-         */
-        public function getPath(): string
-        {
-            return $this->getDirectory() . $this->getDocument();
-        }
-
-        /**
-         * @return string|null
-         */
-        public function getFragment(): ?string
-        {
-            return $this->fragment;
-        }
-
-        /**
-         * @return string
-         */
-        public function toString(): string
-        {
-            $uri = '';
-            if ($this->getScheme() !== null) {
-                $uri .= $this->getScheme() . ':';
-            }
-            if ($this->getHost()) {
-                $uri .= '//';
-                if ($this->getUser()) {
-                    $uri .= rawurlencode($this->getUser());
-                    if ($this->getPass()) {
-                        $uri .= ':' . rawurlencode($this->getPass());
-                    }
-                    $uri .= '@';
-                }
-                $uri .= rawurlencode($this->getHost());
-                if (rawurlencode($this->getPort())) {
-                    $uri .= ':' . rawurlencode($this->getPort());
-                }
-                if (
-                    is_string($this->getPath()) &&
-                    strlen($this->getPath()) &&
-                    $this->getPath()[0] !== '/'
-                ) {
-                    $uri .= '/';
-                }
-            }
-            if ($this->getPath()) {
-                $uri .= implode(
-                    '/',
-                    array_map(
-                        function ($component) {
-                            return rawurlencode($component);
-                        },
-                        explode('/', $this->getPath())
-                    )
-                );
-            }
-            $qs = $this->getQueryString();
-            if ($qs !== null) {
-                $uri .= '?' . $qs;
-            }
-            if ($this->getFragment() !== null) {
-                $uri .= '#' . $this->getFragment();
-            }
-            return $uri;
-        }
-
-        /**
-         * @return bool
-         */
-        public function isQualified(): bool
-        {
-            return (
-                $this->getHost() !== null ||
-                $this->getScheme() !== null
-            );
-        }
-
-        /**
-         * @return bool
-         */
-        public function isRooted(): bool
-        {
-            return (
-                $this->isQualified() ||
-                substr($this->getDirectory(), 0, 1) === '/'
-            );
-        }
-
-        /**
-         * @param self $base
-         * @throws Exception
-         */
-        public function composeWithBase(self $base): void
-        {
-            if (!$base->isRooted()) {
-                throw new Exception('Base must be a rooted URI');
-            }
-            $wasRooted = $this->isRooted();
-            $wasQualified = $this->isQualified();
-            if ($this->getScheme()) {
-                return;
-            }
-            if (
-                $this->getScheme() === '' ||
-                (
-                    $this->getScheme() === null &&
-                    !$this->getHost()
-                )
-            ) {
-                $this->setScheme($base->getScheme());
-            }
-            if ($wasQualified) {
-                return;
-            }
-            if (
-                !$wasRooted &&
-                !$this->getPath()
-            ) {
-                if (!$this->hasQueryString()) {
-                    $this->setQueryStringFrom($base);
-                    if ($this->getFragment() === null) {
-                        $this->setFragment($base->getFragment());
-                    }
-                }
-            }
-            if (!$wasRooted) {
-                $this->setPath($base->getDirectory() . $this->getPath());
-            }
-            $this->setHost($base->getHost());
-            $this->setPort($base->getPort());
-            $this->setUser($base->getUser());
-            $this->setPass($base->getPass());
-        }
-
-        /**
-         * @param AbstractUri $base
-         * @throws Exception
-         */
-        public function makeRelativeToBase(self $base): void
-        {
-            if (!$base->isRooted()) {
-                throw new Exception('Base must be a rooted URI');
-            }
-            if (
-                $this->getHost() !== $base->getHost() ||
-                $this->getPort() !== $base->getPort() ||
-                $this->getUser() !== $base->getUser() ||
-                $this->getPass() !== $base->getPass()
-            ) {
-                if ($this->getScheme() === $base->getScheme()) {
-                    $this->setScheme('');
-                }
-                return;
-            }
-            $this->setScheme(null);
-            $this->setHost(null);
-            $this->setPort(null);
-            $this->setUser(null);
-            $this->setPass(null);
-            $baseDir = $base->getDirectory();
-            $thisDir = $this->getDirectory();
-            $baseDirLen = strlen($baseDir);
-            if (substr($thisDir, 0, $baseDirLen) === $baseDir) {
-                $dir = substr($thisDir, $baseDirLen);
-                $this->setDirectory($dir);
-                if (!$dir) {
-                    if($this->getDocument() === $base->getDocument()){
-                        $this->setDocument('');
-                        if ($this->getQueryString() === $base->getQueryString()) {
-                            $this->setQueryString(null);
-                            if ($this->getFragment() === $base->getFragment()) {
-                                $this->setFragment(null);
-                            } elseif (
-                                $this->getFragment() === null &&
-                                $base->getFragment() !== null
-                            ) {
-                                $this->setFragment('');
-                            }
-                        } elseif (
-                            $this->getQueryString() === null &&
-                            $base->getQueryString() !== null
-                        ) {
-                            $this->setQueryString('');
-                        }
-                    }
-                }
-            } else {
-                if (!$this->isRooted()) {
-                    $this->setScheme('');
-                }
-            }
-        }
 
         /**
          * @param string $uri
@@ -308,98 +30,429 @@
                 throw new InvalidArgumentException('Invalid URI');
             }
             $result = new static();
-            $result->setScheme(
-                $parsed['scheme'] ?? ($setEmptyScheme ? '' : null)
-            );
-            $result->setHost(
-                isset($parsed['host']) ? rawurldecode(
-                    $parsed['host']
-                ) : null
-            );
-            $result->setPort(
-                isset($parsed['port']) ? (int)$parsed['port'] : null
-            );
-            $result->setUser(
-                isset($parsed['user']) ? rawurldecode(
-                    $parsed['user']
-                ) : null
-            );
-            $result->setPass(
-                isset($parsed['pass']) ? rawurldecode(
-                    $parsed['pass']
-                ) : null
-            );
-            $result->setPath(
-                isset($parsed['path']) ? rawurldecode($parsed['path']) : ''
-            );
-            $result->setFragment($parsed['fragment'] ?? null);
-            $result->setQueryString($parsed['query'] ?? null);
+            $result
+                ->setScheme(
+                    $parsed['scheme'] ?? ($setEmptyScheme ? '' : null)
+                )
+                ->setHost(
+                    isset($parsed['host']) ? rawurldecode(
+                        $parsed['host']
+                    ) : null
+                )
+                ->setPort(
+                    isset($parsed['port']) ? (int)$parsed['port'] : null
+                )
+                ->setUser(
+                    isset($parsed['user']) ? rawurldecode(
+                        $parsed['user']
+                    ) : null
+                )
+                ->setPass(
+                    isset($parsed['pass']) ? rawurldecode(
+                        $parsed['pass']
+                    ) : null
+                )
+                ->setPath(
+                    isset($parsed['path']) ? rawurldecode($parsed['path']) : ''
+                )
+                ->setFragment($parsed['fragment'] ?? null)
+                ->setQueryString($parsed['query'] ?? null);
             return $result;
         }
 
         /**
-         * @param string|null $scheme
+         * @param string|null $queryString
+         * @return static
          */
-        public function setScheme(
-            ?string $scheme
-        ): void {
-            $this->scheme = $scheme;
-        }
-
-        /**
-         * @param string|null $host
-         */
-        public function setHost(
-            ?string $host
-        ): void {
-            $this->host = $host;
-        }
-
-        /**
-         * @param int|null $port
-         */
-        public function setPort(
-            ?int $port
-        ): void {
-            $this->port = $port;
-        }
-
-        /**
-         * @param string|null $user
-         */
-        public function setUser(
-            ?string $user
-        ): void {
-            $this->user = $user;
-        }
-
-        /**
-         * @param string|null $pass
-         */
-        public function setPass(
-            ?string $pass
-        ): void {
-            $this->pass = $pass;
-        }
-
-        /**
-         * @param string $path
-         */
-        public function setPath(
-            string $path
-        ): void {
-            preg_match('`(.*/)?([^/]*)`', $path, $match);
-            $this->directory = $match[1];
-            $this->document = $match[2];
-        }
+        abstract public function setQueryString(?string $queryString): self;
 
         /**
          * @param string|null $fragment
+         * @return static
          */
-        public function setFragment(
-            ?string $fragment
-        ): void {
-            $this->fragment = $fragment;
+        abstract public function setFragment(?string $fragment): self;
+
+        /**
+         * @param string $path
+         * @return static
+         */
+        abstract public function setPath(string $path): self;
+
+        /**
+         * @param string|null $pass
+         * @return static
+         */
+        abstract public function setPass(?string $pass): self;
+
+        /**
+         * @param string|null $user
+         * @return static
+         */
+        abstract public function setUser(?string $user): self;
+
+        /**
+         * @param int|null $port
+         * @return static
+         */
+        abstract public function setPort(?int $port): self;
+
+        /**
+         * @param string|null $host
+         * @return static
+         */
+        abstract public function setHost(?string $host): self;
+
+        /**
+         * @param string|null $scheme
+         * @return static
+         */
+        abstract public function setScheme(?string $scheme): self;
+
+        /**
+         * @param AbstractUri $uri
+         * @return static
+         */
+        public static function from(self $uri): self
+        {
+            if (static::class === get_class($uri)) {
+                return clone $uri;
+            }
+            return
+                (new static())
+                    ->setSchemeFrom($uri)
+                    ->setHostFrom($uri)
+                    ->setPortFrom($uri)
+                    ->setUserFrom($uri)
+                    ->setPassFrom($uri)
+                    ->setPathFrom($uri)
+                    ->setQueryStringFrom($uri)
+                    ->setFragmentFrom($uri);
+        }
+
+        /**
+         * @param AbstractUri $uri
+         * @return static
+         */
+        public function setFragmentFrom(self $uri): self
+        {
+            return $this->setFragment($uri->getFragment());
+        }
+
+        /**
+         * @return string|null
+         */
+        abstract public function getFragment(): ?string;
+
+        /**
+         * @param AbstractUri $uri
+         * @return static
+         */
+        public function setQueryStringFrom(self $uri): self
+        {
+            return $this->setQueryString($uri->getQueryString());
+        }
+
+        /**
+         * @return string|null
+         */
+        abstract public function getQueryString(): ?string;
+
+        /**
+         * @param AbstractUri $uri
+         * @return static
+         */
+        public function setPathFrom(self $uri): self
+        {
+            return $this->setPath($uri->getPath());
+        }
+
+        /**
+         * @return string
+         */
+        abstract public function getPath(): string;
+
+        /**
+         * @param AbstractUri $uri
+         * @return static
+         */
+        public function setPassFrom(self $uri): self
+        {
+            return $this->setPass($uri->getPass());
+        }
+
+        /**
+         * @return string|null
+         */
+        abstract public function getPass(): ?string;
+
+        /**
+         * @param AbstractUri $uri
+         * @return static
+         */
+        public function setUserFrom(self $uri): self
+        {
+            return $this->setUser($uri->getUser());
+        }
+
+        /**
+         * @return string|null
+         */
+        abstract public function getUser(): ?string;
+
+        /**
+         * @param AbstractUri $uri
+         * @return static
+         */
+        public function setPortFrom(self $uri): self
+        {
+            return $this->setPort($uri->getPort());
+        }
+
+        /**
+         * @return int|null
+         */
+        abstract public function getPort(): ?int;
+
+        /**
+         * @param AbstractUri $uri
+         * @return static
+         */
+        public function setHostFrom(self $uri): self
+        {
+            return $this->setHost($uri->getHost());
+        }
+
+        /**
+         * @return string|null
+         */
+        abstract public function getHost(): ?string;
+
+        /**
+         * @param AbstractUri $uri
+         * @return static
+         */
+        public function setSchemeFrom(self $uri): self
+        {
+            return $this->setScheme($uri->getScheme());
+        }
+
+        /**
+         * @return string|null
+         */
+        abstract public function getScheme(): ?string;
+
+        public abstract static function isTrailingSlashInsensitive(): bool;
+
+        /**
+         * @param string $scheme
+         */
+        protected static function validateScheme(string $scheme): void
+        {
+            if (!preg_match('`^[a-z]([a-z0-9+.-])*$`i', $scheme)) {
+                throw new InvalidArgumentException('Invalid scheme');
+            }
+        }
+
+        public function toString(): string
+        {
+            return $this->toUriString();
+        }
+
+        /**
+         * @return string
+         */
+        public function toUriString(): string
+        {
+            $uri = '';
+            if ($this->hasScheme()) {
+                $uri .= $this->getScheme() . ':';
+            }
+            if ($this->hasHost()) {
+                $uri .= '//';
+                if ($this->hasUser()) {
+                    $uri .= rawurlencode($this->getUser());
+                    if ($this->hasPass()) {
+                        $uri .= ':' . rawurlencode($this->getPass());
+                    }
+                    $uri .= '@';
+                }
+                $uri .= rawurlencode($this->getHost());
+                if ($this->hasPort()) {
+                    $uri .= ':' . rawurlencode($this->getPort());
+                }
+                if (
+                    $this->hasPath() &&
+                    $this->getPath()[0] !== '/'
+                ) {
+                    $uri .= '/';
+                }
+            }
+            if($this->isPathRooted()){
+                $uri .= '/';
+            }
+            $pathTrail = $this->getPathTrail();
+            $uri .= implode(
+                '/',
+                array_map(
+                    function ($component) {
+                        return rawurlencode($component);
+                    },
+                    $pathTrail
+                )
+            );
+            if(
+                $this->hasTrailingSlash() &&
+                $pathTrail
+            ){
+                $uri.='/';
+            }
+            if ($this->hasQueryString()) {
+                $uri .= '?' . $this->getQueryString();
+            }
+            if ($this->hasFragment()) {
+                $uri .= '#' . $this->getFragment();
+            }
+            return $uri;
+        }
+
+        public function hasScheme(): bool
+        {
+            return ($this->getScheme() !== null);
+        }
+
+        public function hasHost(): bool
+        {
+            return ($this->getHost() !== null);
+        }
+
+        public function hasUser(): bool
+        {
+            return ($this->getUser() !== null);
+        }
+
+        public function hasPass(): bool
+        {
+            return ($this->getPass() !== null);
+        }
+
+        protected function hasPort(): bool
+        {
+            return ($this->getPort() !== null);
+        }
+
+        public function hasPath(): bool
+        {
+            return ($this->getPath() !== '');
+        }
+
+        /**
+         * @return bool
+         */
+        protected function hasQueryString(): bool
+        {
+            return ($this->getQueryString() !== null);
+        }
+
+        /**
+         * @return bool
+         */
+        public function hasFragment(): bool
+        {
+            return $this->getFragment() !== null;
+        }
+
+        /**
+         * @param self $base
+         * @return static
+         * @throws Exception
+         */
+        public function composeWithBase(self $base): self
+        {
+            if (!$base->isRooted()) {
+                throw new Exception('Base must be a rooted URI');
+            }
+            $wasRooted = $this->isRooted();
+            $wasQualified = $this->isQualified();
+            if (
+                $this->hasScheme() &&
+                $this->getScheme() !== ''
+            ) {
+                return $this;
+            }
+            if (
+                $this->getScheme() === '' ||
+                (
+                    $this->getScheme() === null &&
+                    !$this->hasHost()
+                )
+            ) {
+                $this->setSchemeFrom($base);
+            }
+            if ($wasQualified) {
+                return $this;
+            }
+            if (
+                !$wasRooted &&
+                !$this->hasPath()
+            ) {
+                if (!$this->hasQueryString()) {
+                    $this->setQueryStringFrom($base);
+                    if (!$this->hasFragment()) {
+                        $this->setFragmentFrom($base);
+                    }
+                }
+            }
+            if (!$wasRooted) {
+                if ($this->hasPath()) {
+                    $this->setPath($base->getDirectory() . $this->getPath());
+                } else {
+                    $this->setPathFrom($base);
+                }
+            }
+            return
+                $this
+                    ->setHostFrom($base)
+                    ->setPortFrom($base)
+                    ->setUserFrom($base)
+                    ->setPassFrom($base);
+        }
+
+        /**
+         * @return bool
+         */
+        public function isRooted(): bool
+        {
+            return (
+                $this->isQualified() ||
+                $this->isPathRooted()
+            );
+        }
+
+        /**
+         * @return bool
+         */
+        public function isQualified(): bool
+        {
+            return (
+                $this->hasHost() ||
+                $this->hasScheme()
+            );
+        }
+
+        /**
+         * @return bool
+         */
+        public function isPathRooted(): bool
+        {
+            return (
+                $this->hasDirectory() &&
+                substr($this->getDirectory(), 0, 1) === '/'
+            );
+        }
+
+        public function hasDirectory(): bool
+        {
+            return ($this->getDirectory() !== '');
         }
 
         /**
@@ -407,32 +460,204 @@
          *
          * @return string
          */
-        public function getDirectory(): string
+        abstract public function getDirectory(): string;
+
+        /**
+         * @param AbstractUri $relativeUri
+         * @return static
+         */
+        public function applyRelative(AbstractUri $relativeUri): self
         {
-            return $this->directory;
+            if ($relativeUri->isQualified()) {
+                if ($relativeUri->getScheme() !== '') {
+                    $this->setSchemeFrom($relativeUri);
+                }
+                $this->setHostFrom($relativeUri);
+                $this->setPortFrom($relativeUri);
+                $this->setUserFrom($relativeUri);
+                $this->setPassFrom($relativeUri);
+            }
+            $isNewPath = false;
+            if ($relativeUri->isRooted()) {
+                $this->setPathFrom($relativeUri);
+                $isNewPath = true;
+            } elseif ($relativeUri->hasPath()) {
+                $this->setPath($this->getDirectory() . $relativeUri->getPath());
+                $isNewPath = true;
+            }
+            $isNewQS = false;
+            if (
+                $isNewPath ||
+                $relativeUri->hasQueryString()
+            ) {
+                $this->setQueryStringFrom($relativeUri);
+                $isNewQS = true;
+            }
+            if (
+                $isNewQS ||
+                $relativeUri->hasFragment()
+            ) {
+                $this->setFragmentFrom($relativeUri);
+            }
+            return $this;
+        }
+
+        /**
+         * @param AbstractUri $base
+         * @return AbstractUri
+         * @throws Exception
+         */
+        public function makeRelativeToBase(self $base): self
+        {
+            if (!$base->isRooted()) {
+                throw new Exception('Base must be a rooted URI');
+            }
+            if (
+                $this->getHost() !== $base->getHost() ||
+                $this->getPort() !== $base->getPort() ||
+                $this->getUser() !== $base->getUser() ||
+                $this->getPass() !== $base->getPass()
+            ) {
+                if ($this->getScheme() === $base->getScheme()) {
+                    $this->setScheme('');
+                }
+                return $this;
+            }
+            $this
+                ->setScheme(null)
+                ->setHost(null)
+                ->setPort(null)
+                ->setUser(null)
+                ->setPass(null);
+            $baseDir = $base->getDirectory();
+            $baseDirLen = strlen($baseDir);
+            if (
+                substr($this->getDirectory(), 0, $baseDirLen) === $baseDir
+            ) {
+                $path = substr($this->getPath(), $baseDirLen);
+                if ($path === $base->getDocument()) {
+                    $this->setPath('');
+                    if (
+                        $this->getQueryString() === $base->getQueryString()
+                    ) {
+                        $this->setQueryString(null);
+                        if ($this->getFragment() === $base->getFragment()) {
+                            $this->setFragment(null);
+                        } elseif (
+                            !$this->hasFragment() &&
+                            $base->hasFragment()
+                        ) {
+                            $this->setFragment('');
+                        }
+                    } elseif (
+                        $this->getQueryString() === null &&
+                        $base->getQueryString() !== null
+                    ) {
+                        $this->setQueryString('');
+                    }
+                } else {
+                    $this->setPath($path);
+                }
+            } else {
+                if (!$this->isRooted()) {
+                    $this->setScheme('');
+                }
+            }
+            return $this;
         }
 
         /**
          * @return string
          */
-        public function getDocument(): string
-        {
-            return $this->document;
-        }
+        abstract public function getDocument(): string;
 
         /**
          * @param string $directory
+         * @return static
          */
-        public function setDirectory(string $directory): void
-        {
-            $this->directory = $directory;
-        }
+        abstract public function setDirectory(string $directory): self;
 
         /**
          * @param string $document
+         * @return static
          */
-        public function setDocument(string $document): void
+        abstract public function setDocument(string $document): self;
+
+        /**
+         * @param string $path
+         * @return static
+         */
+        public function descend(string $path): self
         {
-            $this->document = $document;
+            return
+                $this
+                    ->setPath(
+                        $this->getPath() .
+                        ($this->hasTrailingSlash() ? '' : '/') .
+                        $path
+                    )
+                    ->setQueryString(null)
+                    ->setFragment(null);
+        }
+
+        public function hasTrailingSlash(): bool
+        {
+            return (substr($this->getPath(), -1) === '/');
+        }
+
+        public function hasDocument(): bool
+        {
+            return ($this->getDocument() !== '');
+        }
+
+        /**
+         * @param int $levels
+         * @return static
+         * @throws ErrorException
+         */
+        public function ascend(int $levels = 1): self
+        {
+            if ($levels < 1) {
+                throw new InvalidArgumentException('Levels must be at least 1');
+            }
+            $trail = $this->getPathTrail();
+            if ($levels > count($trail)) {
+                throw new ErrorException('Cannot ascend that many levels');
+            }
+            return
+                $this
+                    ->setPath(
+                        implode('/', array_slice($trail, 0, -$levels)) . '/'
+                    )
+                    ->setQueryString(null)
+                    ->setFragment(null);
+        }
+
+        public function getPathTrail(): array
+        {
+            $trail = explode('/', $this->getPath());
+            if (
+                $trail &&
+                !end($trail)
+            ) {
+                array_pop($trail);
+            }
+            if (
+                $trail &&
+                !reset($trail)
+            ) {
+                array_shift($trail);
+            }
+            return $trail;
+        }
+
+        /**
+         * @return int
+         */
+        public function getPathDepth(): int
+        {
+            return
+                substr_count($this->getPath(), '/') -
+                ($this->hasTrailingSlash() ? 1 : 0);
         }
     }

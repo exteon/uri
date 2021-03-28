@@ -4,11 +4,13 @@
 
     class Uri extends AbstractUri
     {
+        use SchemeHostTrait, PathTrailTrait, FragmentTrait;
+
         /**  @var string | null */
         protected $queryString;
 
         /**
-         * Uri constructor.
+         * URI constructor.
          * @param string|null $scheme
          * @param string|null $host
          * @param int|null $port
@@ -28,14 +30,20 @@
             ?string $queryString = null,
             ?string $fragment = null
         ) {
-            $this->setScheme( $scheme);
-            $this->setHost ($host);
-            $this->setPort ( $port);
-            $this->setUser ( $user);
-            $this->setPass ( $pass);
-            $this->setPath($path);
-            $this->setFragment ( $fragment);
-            $this->setQueryString($queryString);
+            $this
+                ->setScheme($scheme)
+                ->setHost($host)
+                ->setPort($port)
+                ->setUser($user)
+                ->setPass($pass)
+                ->setPath($path)
+                ->setFragment($fragment)
+                ->setQueryString($queryString);
+        }
+
+        public static function isTrailingSlashInsensitive(): bool
+        {
+            return false;
         }
 
         /**
@@ -48,24 +56,11 @@
 
         /**
          * @param string|null $queryString
+         * @return static
          */
-        public function setQueryString(?string $queryString): void {
+        public function setQueryString(?string $queryString): AbstractUri
+        {
             $this->queryString = $queryString;
-        }
-
-        /**
-         * @return bool
-         */
-        protected function hasQueryString(): bool
-        {
-            return ($this->queryString !== null);
-        }
-
-        /**
-         * @param AbstractUri $from
-         */
-        protected function setQueryStringFrom(AbstractUri $from): void
-        {
-            $this->setQueryString($from->getQueryString());
+            return $this;
         }
     }

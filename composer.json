@@ -3,7 +3,7 @@
   "description": "A set of objects for parsing, composing and manipulating URIs",
   "type": "library",
   "license": "Apache-2.0",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "authors": [
     {
       "name": "Dinu Marina",

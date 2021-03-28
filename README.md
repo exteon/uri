@@ -109,6 +109,9 @@ echo $uri->toString();
 // scheme://host/root/b
 ```
 
+The converse to `composeWithBase()` is `applyRelative()`, which is perfectly 
+symmetrical when run on the base URI with a relative URI as parameter. 
+
 A relative URL can also be derived from an absolute URL and a base URL:
 
 ```php
@@ -180,7 +183,55 @@ browser urls to specify 'same protocol as browsed page'.
 
 Be mindful about trailing `/` in paths; the library uses the browser composition
 algorithm: a relative url of `bar` composed with base urls `foo` and `foo/` will
-yield `bar` and `foo/bar` respectively.
+yield `bar` and `foo/bar` respectively. The exception to this is the 
+[`UnixPathUri`](#unix-path-uri).
+
+### `ascend()` and `descend()`
+
+While not present in [RFC 3986](https://tools.ietf.org/html/rfc3986), it has 
+become quite ubiquitous that the path component of an URI is a trail of 
+hierarchically organized components separated by `/`. To serve this convention,
+all URI objects implement the `ascend()` and `descend()` functions.
+
+```php
+public function ascend(int $levels = 1): self;
+```
+
+```php
+use Exteon\Uri\Uri;
+
+$uri = Uri::fromString('a/b?qs');
+$uri->ascend();
+var_dump($uri->toString());
+// a/
+```
+
+***Note***
+
+When using `ascend()`, the resulting URI will always be considered a directory and 
+have the trailing slash.
+
+```php
+public function descend(string $path): self;
+```
+
+```php
+use Exteon\Uri\Uri;
+
+$uri = Uri::fromString('a/b?qs');
+$uri->descend('c/d');
+var_dump($uri->toString());
+// a/c/d
+```
+
+***Note***
+
+When using `descend()`, the Web convention, applying the descending path to the
+URI directory, as in the example above. Because `a/b` does not include a 
+trailing slash, the directory part is `a/` to which `c/d` is applied.
+
+The exception to the above described behavior is the 
+[`UnixPathUri`](#unix-path-uri).
 
 ## PHP URIs
 
@@ -188,7 +239,7 @@ With `Uri`, the query string is not assigned any special meaning. You can use
 the `PHPUri` object to parse and generate PHP query strings:
 
 ```php
-use Exteon\Uri\PHPUri;
+use Exteon\Uri\PhpUri;
 
 $initial = '?foo=bar';
 $uri = PhpUri::fromString($initial);
@@ -197,9 +248,9 @@ var_dump($uri->getQuery());
 ```
 
 ```php
-use Exteon\Uri\PHPUri;
+use Exteon\Uri\PhpUri;
 
-$uri = new PHPUri();
+$uri = new PhpUri();
 $uri->setQuery(['foo' => 'bar']);
 echo $uri->toString();
 // ?foo=bar
@@ -213,4 +264,49 @@ null values. For this `PHPUri` provides two helper methods:
 `nullValuesToEmptyString()` and `nullValuesUnset()` (the default PHP behavior) 
 which you can use on the query before passing to the constructor or 
 `setQuery()`. If an array with null values is passed to `setQuery()`, an 
-`InvalidArgumentException` will be thrown. 
+`InvalidArgumentException` will be thrown.
+
+## <a name="unix-path-uri"></a>Unix path URIs
+
+The `UnixPathUri` models an URI that can only have a path part (no scheme, host,
+query string, fragment). They can be composed just like the Web URIs, but with a
+quite important different convention:
+
+For `UnixPathUri`, `getDirectory()` and `getPath()` represent the same resource
+even if the URI does not have a trailing slash.
+
+Example:
+
+```php
+use Exteon\Uri\UnixPathUri;
+
+$uri = UnixPathUri::fromString('/a/b');
+var_dump($uri->getPath());
+// /a/b
+var_dump($uri->getDirectory());
+// /a/b/
+// Uri::getDirectory() would have been "/a/" 
+```
+
+This has implications on the way relative URIs are applied and derived. For 
+instance:
+
+```php
+use Exteon\Uri\UnixPathUri;
+
+$base = UnixPathUri::fromString('/a');
+$relative = UnixPathUri::fromString('b');
+$relative->composeWithBase($base);
+var_dump($relative->toString());
+// /a/b
+// With Uri, the result would have been "/b" 
+```
+
+In a more intuitive way, the `UnixPathUri` URI type acts just like a Unix shell 
+path, and the relative URIs act just like running a `cd` command on the base 
+URI. Special path fragments like `.` and `..` are obviously not implemented,
+you can use the `ascend()` method to model going to an upper dir.
+
+`UnixPathUri` can be combined with other types of URIs (i.e. a relative 
+`UnixPathUri` can be combined with a root web `Uri` via `Uri::applyRelative()`)
+resulting in a full Web Uri.
