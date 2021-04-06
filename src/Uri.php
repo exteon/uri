@@ -61,6 +61,12 @@
         public function setQueryString(?string $queryString): AbstractUri
         {
             $this->queryString = $queryString;
+            $this->invalidateCache();
             return $this;
+        }
+
+        public function hasQueryString(): bool
+        {
+            return ($this->queryString !== null);
         }
     }

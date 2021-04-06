@@ -22,7 +22,13 @@
         public function setFragment(?string $fragment): AbstractUri
         {
             $this->fragment = $fragment;
+            $this->invalidateCache();
             return $this;
+        }
+
+        public function hasFragment(): bool
+        {
+            return ($this->fragment !== null);
         }
 
     }

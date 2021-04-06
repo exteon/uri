@@ -22,48 +22,13 @@
          */
         public function setPath(string $path): AbstractUri
         {
-            $pathTrail = explode('/', $path);
-            return $this->setPathTrailAndTrailingSlashAndRooted($pathTrail);
-        }
-
-        /**
-         * @param array $pathTrail
-         * @return static
-         */
-        protected function setPathTrailAndTrailingSlashAndRooted(
-            array $pathTrail
-        ): self {
-            if (
-                count($pathTrail) > 1 &&
-                !reset($pathTrail)
-            ) {
-                array_shift($pathTrail);
-                $this->isPathRooted = true;
+            if ($path) {
+                $pathTrail = explode('/', $path);
             } else {
-                $this->isPathRooted = false;
+                $pathTrail = [];
             }
-            return $this->setPathTrailAndTrailingSlash($pathTrail);
+            return $this->setPathTrail($pathTrail);
         }
-
-        /**
-         * @param array $pathTrail
-         * @return static
-         */
-        protected function setPathTrailAndTrailingSlash(array $pathTrail): self
-        {
-            if (
-                $pathTrail &&
-                !end($pathTrail)
-            ) {
-                array_pop($pathTrail);
-                $this->hasTrailingSlash = (bool)$pathTrail;
-            } else {
-                $this->hasTrailingSlash = false;
-            }
-            $this->pathTrail = $pathTrail;
-            return $this;
-        }
-
 
         /**
          * @return string
@@ -96,7 +61,7 @@
         /**
          * @return string[]
          */
-        protected function getDirectoryPathTrail(): array
+        public function getDirectoryPathTrail(): array
         {
             if ($this->hasTrailingSlash) {
                 return $this->pathTrail;
@@ -125,6 +90,7 @@
                 $pathTrail[] = $document;
             }
             $this->pathTrail = $pathTrail;
+            $this->invalidateCache();
             return $this;
         }
 
@@ -152,19 +118,34 @@
          */
         public function setDocument(string $document): AbstractUri
         {
-            if (
-                $this->pathTrail &&
-                !$this->hasTrailingSlash
-            ) {
-                array_pop($this->pathTrail);
-            }
-            $this->pathTrail[] = $document;
+            $pathTrail = $this->getDirectoryPathTrail();
+            $pathTrail[] = $document;
+            $this->pathTrail = $pathTrail;
+            $this->invalidateCache();;
             return $this;
         }
 
         public function getPathTrail(): array
         {
             return $this->pathTrail;
+        }
+
+        /**
+         * @param array $pathTrail
+         * @return static
+         */
+        protected function setPathTrail(array $pathTrail): AbstractUri
+        {
+            if (
+                count($pathTrail) > 1 &&
+                !reset($pathTrail)
+            ) {
+                array_shift($pathTrail);
+                $this->isPathRooted = true;
+            } else {
+                $this->isPathRooted = false;
+            }
+            return $this->setPathTrailAndTrailingSlash($pathTrail);
         }
 
         public function getPathDepth(): int
@@ -190,6 +171,26 @@
         }
 
         /**
+         * @param array $pathTrail
+         * @return static
+         */
+        protected function setPathTrailAndTrailingSlash(array $pathTrail): self
+        {
+            if (
+                $pathTrail &&
+                !end($pathTrail)
+            ) {
+                array_pop($pathTrail);
+                $this->hasTrailingSlash = true;
+            } else {
+                $this->hasTrailingSlash = false;
+            }
+            $this->pathTrail = $pathTrail;
+            $this->invalidateCache();;
+            return $this;
+        }
+
+        /**
          * @param int $levels
          * @return static
          * @throws ErrorException
@@ -203,7 +204,8 @@
                 throw new ErrorException('Cannot ascend that many levels');
             }
             $this->pathTrail = array_slice($this->pathTrail, 0, -$levels);
-            $this->hasTrailingSlash = (bool)$this->pathTrail;
+            $this->hasTrailingSlash = (bool)$this->pathTrail ||
+                $this->isPathRooted;
             return
                 $this
                     ->setQueryString(null)
@@ -219,6 +221,7 @@
             $this->pathTrail = $uri->getPathTrail();
             $this->hasTrailingSlash = $uri->hasTrailingSlash();
             $this->isPathRooted = $uri->isPathRooted();
+            $this->invalidateCache();
             return $this;
         }
 
@@ -243,5 +246,10 @@
         public function isPathRooted(): bool
         {
             return $this->isPathRooted;
+        }
+
+        public function hasTrailingSlash(): bool
+        {
+            return $this->hasTrailingSlash;
         }
     }

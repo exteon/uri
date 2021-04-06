@@ -384,6 +384,10 @@
             $uri->makeRelativeToBase($baseUri);
             self::assertEquals('c?query=#fragment', $uri->toString());
 
+            $uri = $uriType::fromString('scheme://host/a/c/d?query=#fragment');
+            $uri->makeRelativeToBase($baseUri);
+            self::assertEquals('c/d?query=#fragment', $uri->toString());
+
             $uri = $uriType::fromString('scheme://host/a?query=#fragment');
             $uri->makeRelativeToBase($baseUri);
             self::assertEquals('/a?query=#fragment', $uri->toString());

@@ -8,6 +8,12 @@
 
     abstract class AbstractUri
     {
+        /** @var string|null */
+        protected $cachedUriString;
+
+        /** @var string|null */
+        protected $cachedUriStringWithoutQueryFragment;
+
         abstract public function __construct();
 
         /**
@@ -255,13 +261,45 @@
 
         public function toString(): string
         {
-            return $this->toUriString();
+            return $this->getUriString();
+        }
+
+        public function getUriString(): string
+        {
+            if ($this->cachedUriString === null) {
+                $this->cachedUriString = $this->composeUriString();
+            }
+            return $this->cachedUriString;
         }
 
         /**
          * @return string
          */
-        public function toUriString(): string
+        protected function composeUriString(): string
+        {
+            $uri = $this->getUriStringWithoutQueryFragment();
+            if ($this->hasQueryString()) {
+                $uri .= '?' . $this->getQueryString();
+            }
+            if ($this->hasFragment()) {
+                $uri .= '#' . $this->getFragment();
+            }
+            return $uri;
+        }
+
+        public function getUriStringWithoutQueryFragment(): string
+        {
+            if ($this->cachedUriStringWithoutQueryFragment === null) {
+                $this->cachedUriStringWithoutQueryFragment = $this->composeUriStringWithoutQueryFragment(
+                );
+            }
+            return $this->cachedUriStringWithoutQueryFragment;
+        }
+
+        /**
+         * @return string
+         */
+        protected function composeUriStringWithoutQueryFragment(): string
         {
             $uri = '';
             if ($this->hasScheme()) {
@@ -287,30 +325,22 @@
                     $uri .= '/';
                 }
             }
-            if($this->isPathRooted()){
+            if ($this->isPathRooted()) {
                 $uri .= '/';
             }
             $pathTrail = $this->getPathTrail();
             $uri .= implode(
                 '/',
                 array_map(
-                    function ($component) {
-                        return rawurlencode($component);
-                    },
+                    'rawurlencode',
                     $pathTrail
                 )
             );
-            if(
+            if (
                 $this->hasTrailingSlash() &&
                 $pathTrail
-            ){
-                $uri.='/';
-            }
-            if ($this->hasQueryString()) {
-                $uri .= '?' . $this->getQueryString();
-            }
-            if ($this->hasFragment()) {
-                $uri .= '#' . $this->getFragment();
+            ) {
+                $uri .= '/';
             }
             return $uri;
         }
@@ -343,6 +373,52 @@
         public function hasPath(): bool
         {
             return ($this->getPath() !== '');
+        }
+
+        /**
+         * @return bool
+         */
+        public function isPathRooted(): bool
+        {
+            return (
+                $this->hasDirectory() &&
+                substr($this->getDirectory(), 0, 1) === '/'
+            );
+        }
+
+        public function hasDirectory(): bool
+        {
+            return ($this->getDirectory() !== '');
+        }
+
+        /**
+         * Gets the document directory, including the trailing /
+         *
+         * @return string
+         */
+        abstract public function getDirectory(): string;
+
+        public function getPathTrail(): array
+        {
+            $trail = explode('/', $this->getPath());
+            if (
+                $trail &&
+                !end($trail)
+            ) {
+                array_pop($trail);
+            }
+            if (
+                $trail &&
+                !reset($trail)
+            ) {
+                array_shift($trail);
+            }
+            return $trail;
+        }
+
+        public function hasTrailingSlash(): bool
+        {
+            return (substr($this->getPath(), -1) === '/');
         }
 
         /**
@@ -440,29 +516,6 @@
         }
 
         /**
-         * @return bool
-         */
-        public function isPathRooted(): bool
-        {
-            return (
-                $this->hasDirectory() &&
-                substr($this->getDirectory(), 0, 1) === '/'
-            );
-        }
-
-        public function hasDirectory(): bool
-        {
-            return ($this->getDirectory() !== '');
-        }
-
-        /**
-         * Gets the document directory, including the trailing /
-         *
-         * @return string
-         */
-        abstract public function getDirectory(): string;
-
-        /**
          * @param AbstractUri $relativeUri
          * @return static
          */
@@ -512,6 +565,9 @@
             if (!$base->isRooted()) {
                 throw new Exception('Base must be a rooted URI');
             }
+            if (!$this->isRooted()) {
+                throw new Exception('Can only make rooted URIs relative');
+            }
             if (
                 $this->getHost() !== $base->getHost() ||
                 $this->getPort() !== $base->getPort() ||
@@ -529,14 +585,26 @@
                 ->setPort(null)
                 ->setUser(null)
                 ->setPass(null);
-            $baseDir = $base->getDirectory();
-            $baseDirLen = strlen($baseDir);
+
+            $baseDirTrail = $base->getDirectoryPathTrail();
+            $baseDirDepth = count($baseDirTrail);
+            $dirTrail = $this->getDirectoryPathTrail();
             if (
-                substr($this->getDirectory(), 0, $baseDirLen) === $baseDir
+                count($this->getDirectoryPathTrail()) >= count($baseDirTrail) &&
+                $baseDirTrail ===
+                array_slice($dirTrail, 0, $baseDirDepth)
             ) {
-                $path = substr($this->getPath(), $baseDirLen);
-                if ($path === $base->getDocument()) {
-                    $this->setPath('');
+                $relativePathTrail = array_slice($dirTrail, $baseDirDepth);
+                $document = $this->getDocument();
+                if(
+                    $document &&
+                    $document != $base->getDocument()
+                ){
+                    $relativePathTrail[] = $document;
+                }
+
+                if (!$relativePathTrail) {
+                    $this->setPathTrail([]);
                     if (
                         $this->getQueryString() === $base->getQueryString()
                     ) {
@@ -556,7 +624,10 @@
                         $this->setQueryString('');
                     }
                 } else {
-                    $this->setPath($path);
+                    if ($this->hasTrailingSlash()) {
+                        $relativePathTrail[] = '';
+                    }
+                    $this->setPathTrail($relativePathTrail);
                 }
             } else {
                 if (!$this->isRooted()) {
@@ -567,9 +638,31 @@
         }
 
         /**
+         * @return string[]
+         */
+        public function getDirectoryPathTrail(): array
+        {
+            $trail = explode('/', $this->getDirectory());
+            array_pop($trail);
+            if (
+                $trail &&
+                !reset($trail)
+            ) {
+                array_shift($trail);
+            }
+            return $trail;
+        }
+
+        /**
          * @return string
          */
         abstract public function getDocument(): string;
+
+        /**
+         * @param string[] $relativePathTrail
+         * @return static
+         */
+        abstract public function setPathTrail(array $relativePathTrail): self;
 
         /**
          * @param string $directory
@@ -600,11 +693,6 @@
                     ->setFragment(null);
         }
 
-        public function hasTrailingSlash(): bool
-        {
-            return (substr($this->getPath(), -1) === '/');
-        }
-
         public function hasDocument(): bool
         {
             return ($this->getDocument() !== '');
@@ -633,24 +721,6 @@
                     ->setFragment(null);
         }
 
-        public function getPathTrail(): array
-        {
-            $trail = explode('/', $this->getPath());
-            if (
-                $trail &&
-                !end($trail)
-            ) {
-                array_pop($trail);
-            }
-            if (
-                $trail &&
-                !reset($trail)
-            ) {
-                array_shift($trail);
-            }
-            return $trail;
-        }
-
         /**
          * @return int
          */
@@ -659,5 +729,11 @@
             return
                 substr_count($this->getPath(), '/') -
                 ($this->hasTrailingSlash() ? 1 : 0);
+        }
+
+        protected function invalidateCache()
+        {
+            $this->cachedUriString = null;
+            $this->cachedUriStringWithoutQueryFragment = null;
         }
     }

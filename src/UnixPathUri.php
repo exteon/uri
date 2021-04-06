@@ -193,8 +193,42 @@
             return $this->getPathTrail();
         }
 
+        public function getDocument(): string
+        {
+            return '';
+        }
+
         public function hasDirectory(): bool
         {
             return $this->hasPath();
+        }
+
+        public function hasScheme(): bool
+        {
+            return false;
+        }
+
+        public function hasHost(): bool {
+            return false;
+        }
+
+        public function hasUser(): bool
+        {
+            return false;
+        }
+
+        public function hasPass(): bool
+        {
+            return false;
+        }
+
+        public function hasQueryString(): bool
+        {
+            return false;
+        }
+
+        public function hasFragment(): bool
+        {
+            return false;
         }
     }

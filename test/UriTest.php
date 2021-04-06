@@ -25,6 +25,13 @@
                 $uriString
             );
             $uri2 = Uri::fromString($uriString);
-            self::assertEquals($uri, $uri2);
+            self::assertSame($uri->getScheme(), $uri2->getScheme());
+            self::assertSame($uri->getHost(), $uri2->getHost());
+            self::assertSame($uri->getPort(), $uri2->getPort());
+            self::assertSame($uri->getUser(), $uri2->getUser());
+            self::assertSame($uri->getPass(), $uri2->getPass());
+            self::assertSame($uri->getPath(), $uri2->getPath());
+            self::assertSame($uri->getFragment(), $uri2->getFragment());
+            self::assertSame($uri->getQueryString(), $uri2->getQueryString());
         }
     }

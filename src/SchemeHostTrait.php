@@ -38,6 +38,7 @@
                 static::validateScheme($scheme);
             }
             $this->scheme = $scheme;
+            $this->invalidateCache();
             return $this;
         }
 
@@ -57,6 +58,7 @@
             ?string $host
         ): AbstractUri {
             $this->host = $host;
+            $this->invalidateCache();
             return $this;
         }
 
@@ -76,6 +78,7 @@
             ?int $port
         ): AbstractUri {
             $this->port = $port;
+            $this->invalidateCache();
             return $this;
         }
 
@@ -95,6 +98,7 @@
             ?string $user
         ): AbstractUri {
             $this->user = $user;
+            $this->invalidateCache();
             return $this;
         }
 
@@ -113,7 +117,35 @@
         public function setPass(?string $pass): AbstractUri
         {
             $this->pass = $pass;
+            $this->invalidateCache();
             return $this;
         }
 
+        /**
+         * @return bool
+         */
+        public function hasScheme(): bool
+        {
+            return ($this->scheme !== null);
+        }
+
+        public function hasHost(): bool
+        {
+            return ($this->host !== null);
+        }
+
+        public function hasUser(): bool
+        {
+            return ($this->user !== null);
+        }
+
+        public function hasPass(): bool
+        {
+            return ($this->pass !== null);
+        }
+
+        public function hasPort(): bool
+        {
+            return ($this->port !== null);
+        }
     }

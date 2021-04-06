@@ -124,8 +124,8 @@
             return
                 ($this->query ?
                     http_build_query($this->query) :
-                    ($this->hasNonNullEmptyQuery?
-                        '':
+                    ($this->hasNonNullEmptyQuery ?
+                        '' :
                         null
                     )
                 );
@@ -139,7 +139,7 @@
         {
             if ($queryString !== null) {
                 parse_str($queryString, $query);
-                if(!$query){
+                if (!$query) {
                     $this->hasNonNullEmptyQuery = true;
                 }
             } else {
@@ -147,6 +147,7 @@
                 $this->hasNonNullEmptyQuery = false;
             }
             $this->query = $query;
+            $this->invalidateCache();
             return $this;
         }
 
@@ -158,15 +159,19 @@
         public function setQueryParameter(string $key, $value): self
         {
             $this->query[$key] = $value;
+            $this->invalidateCache();
             return $this;
         }
 
         /**
          * @param string $key
+         * @return static
          */
-        public function unsetQueryParameter(string $key): void
+        public function unsetQueryParameter(string $key): self
         {
             unset($this->query[$key]);
+            $this->invalidateCache();
+            return $this;
         }
 
         /**
@@ -184,17 +189,6 @@
         public function getFragment(): ?string
         {
             return $this->fragment;
-        }
-
-        /**
-         * @param string|null $fragment
-         * @return static
-         */
-        public function setFragment(
-            ?string $fragment
-        ): AbstractUri {
-            $this->fragment = $fragment;
-            return $this;
         }
 
         /**
@@ -229,6 +223,7 @@
                 );
             }
             $this->query = $query;
+            $this->invalidateCache();
             return $this;
         }
 

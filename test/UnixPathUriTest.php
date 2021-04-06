@@ -37,13 +37,13 @@
 
             $uri = UnixPathUri::fromString('a');
             $uri->composeWithBase($baseURI);
-            self::assertEquals('/root/a', $uri->toUriString());
+            self::assertEquals('/root/a', $uri->toString());
 
             $uri = UnixPathUri::fromString('');
             $uri->composeWithBase($baseURI);
             self::assertEquals(
                 '/root',
-                $uri->toUriString()
+                $uri->toString()
             );
         }
 
@@ -56,19 +56,23 @@
 
             $uri = UnixPathUri::fromString('/a/b');
             $uri->makeRelativeToBase($baseURI);
-            self::assertEquals('', $uri->toUriString());
+            self::assertEquals('', $uri->toString());
 
             $uri = UnixPathUri::fromString('/a/c');
             $uri->makeRelativeToBase($baseURI);
-            self::assertEquals('/a/c', $uri->toUriString());
+            self::assertEquals('/a/c', $uri->toString());
 
             $uri = UnixPathUri::fromString('/a/b/c');
             $uri->makeRelativeToBase($baseURI);
-            self::assertEquals('c', $uri->toUriString());
+            self::assertEquals('c', $uri->toString());
+
+            $uri = UnixPathUri::fromString('/a/b/c/d');
+            $uri->makeRelativeToBase($baseURI);
+            self::assertEquals('c/d', $uri->toString());
 
             $uri = UnixPathUri::fromString('/a/b/c/');
             $uri->makeRelativeToBase($baseURI);
-            self::assertEquals('c/', $uri->toUriString());
+            self::assertEquals('c/', $uri->toString());
         }
 
         public function testDescend(): void
