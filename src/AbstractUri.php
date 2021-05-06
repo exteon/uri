@@ -558,7 +558,7 @@
         /**
          * @param AbstractUri $base
          * @return AbstractUri
-         * @throws Exception
+         * @throws ErrorException
          */
         public function makeRelativeToBase(self $base): self
         {
@@ -624,6 +624,9 @@
                         $this->setQueryString('');
                     }
                 } else {
+                    if(!reset($relativePathTrail)){
+                        throw new ErrorException('Relative URI would be an absolute URI because of duplicated \'/\'');
+                    }
                     if ($this->hasTrailingSlash()) {
                         $relativePathTrail[] = '';
                     }

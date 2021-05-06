@@ -1,3 +1,11 @@
+# 2.0.1
+
+## Bugfixes
+
+* `AbstractUri::makeRelativeToBase()` now throws an error instead of silently 
+  returning an absolute URI when the relative URI would start with a `/` (eg. 
+  `/a//b` relative to `/a/`)
+
 # 2.0.0
 
 ## Changes

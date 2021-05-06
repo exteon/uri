@@ -408,6 +408,18 @@
 
         /**
          * @param class-string<AbstractUri> $uriType
+         * @dataProvider getDerivedClasses1
+         */
+        public function testMakeRelativeWouldProduceAbsolute($uriType)
+        {
+            $baseUri = $uriType::fromString('/a/');
+            $uri = $uriType::fromString('/a//b');
+            $this->expectException(ErrorException::class);
+            $uri->makeRelativeToBase($baseUri);
+        }
+
+        /**
+         * @param class-string<AbstractUri> $uriType
          * @dataProvider getDerivedClasses2
          */
         public function testSchemeValidationOnConstructorArg(string $uriType
