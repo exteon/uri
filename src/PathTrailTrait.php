@@ -134,7 +134,7 @@
          * @param array $pathTrail
          * @return static
          */
-        protected function setPathTrail(array $pathTrail): AbstractUri
+        public function setPathTrail(array $pathTrail): AbstractUri
         {
             if (
                 count($pathTrail) > 1 &&
