@@ -1,6 +1,12 @@
-# 2.0.1
+### 2.0.2
 
-## Bugfixes
+#### Bugfixes
+
+* Incorrect `setPathTrail` signature was crashing in PHP 8
+
+### 2.0.1
+
+#### Bugfixes
 
 * `AbstractUri::makeRelativeToBase()` now throws an error instead of silently 
   returning an absolute URI when the relative URI would start with a `/` (eg. 
@@ -8,21 +14,21 @@
 
 # 2.0.0
 
-## Changes
+#### Changes
 
 `PHPUri` renamed to `PhpUri`
 
-## New features
+#### New features
 
 * Introduced `UnixPathUri` class
 * Introduced full ascend/descend semantics
 * Introduced `AbstractUri::getUriStringWithoutQueryFragment()`
   
-## Bugfixes
+#### Bugfixes
 
 * Introduced validation for URI schemes
   
-## Improvements
+#### Improvements
 
 * Made mutators cursive
 * Performance improvements for `ascend()` / `descend()`
