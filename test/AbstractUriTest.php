@@ -5,7 +5,9 @@
     use ErrorException;
     use Exception;
     use Exteon\Uri\AbstractUri;
+    use Exteon\Uri\PathTrailTrait;
     use Exteon\Uri\PhpUri;
+    use Exteon\Uri\SchemeHostTrait;
     use Exteon\Uri\UnixPathUri;
     use Exteon\Uri\Uri;
     use InvalidArgumentException;
@@ -552,5 +554,20 @@
         {
             $this->expectException(ErrorException::class);
             $uriType::fromString('')->ascend();
+        }
+
+        /**
+         * @param class-string<AbstractUri> $uriType
+         * @dataProvider getDerivedClasses2
+         */
+        public function testEmptyPathDescend(string $uriType): void
+        {
+            $uri = $uriType::fromString('http://localhost:8080');
+            $uri->descend('');
+            self::assertTrue($uri->hasPath());
+            self::assertTrue($uri->isRooted());
+            self::assertTrue($uri->hasTrailingSlash());
+            self::assertEquals('/',$uri->getPath());
+            self::assertEquals('http://localhost:8080/',$uri->toString());
         }
     }

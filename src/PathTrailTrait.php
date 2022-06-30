@@ -182,6 +182,9 @@
             ) {
                 array_pop($pathTrail);
                 $this->hasTrailingSlash = true;
+                if(!$pathTrail){
+                    $this->isPathRooted = true;
+                }
             } else {
                 $this->hasTrailingSlash = false;
             }
