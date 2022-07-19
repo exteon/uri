@@ -1,3 +1,9 @@
+### 2.0.3
+
+#### Bugfixes
+
+* `descend('')` was leaving the Uri in an incoherent state
+
 ### 2.0.2
 
 #### Bugfixes
